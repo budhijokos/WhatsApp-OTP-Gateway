@@ -1,0 +1,6 @@
+{
+  "name": "WhatsApp OTP Gateway - Hono Baileys Server",
+  "description": "Server pengiriman OTP WhatsApp real-time berbasis Hono.js dan WhiskeySockets Baileys dengan validasi JWT, dokumentasi Swagger, dan konsol status pengiriman.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

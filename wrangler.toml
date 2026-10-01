@@ -1,0 +1,12 @@
+name = "whatsapp-otp-gateway-api"
+main = "server/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NODE_ENV = "production"
+JWT_SECRET = "whatsapp_otp_jwt_secret_production_key_change_me"
+
+# Optional Cloudflare KV / D1 / Durable Objects configuration if needed
+[observability]
+enabled = true
