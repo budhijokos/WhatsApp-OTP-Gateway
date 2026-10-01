@@ -11,7 +11,11 @@
     "clean": "rm -rf dist server.js .baileys_auth",
     "lint": "tsc --noEmit",
     "deploy:pages": "vite build && npx wrangler pages deploy dist",
-    "deploy:worker": "npx wrangler deploy"
+    "deploy:worker": "npx wrangler deploy",
+    "pm2:start": "pm2 start ecosystem.config.cjs --env production",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs --env production",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
+    "pm2:logs": "pm2 logs whatsapp-otp-gateway"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
