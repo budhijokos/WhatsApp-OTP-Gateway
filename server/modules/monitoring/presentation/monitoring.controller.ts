@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { monitoringService } from '../application/monitoring.service.js';
 import { whatsAppService } from '../../whatsapp/application/whatsapp.service.js';
+import { dispatchQueueService } from '../../../core/queue/dispatch-queue.service.js';
 import { AppConfig } from '../../../core/config/app.config.js';
 
 export function createMonitoringController(): Hono {
@@ -59,6 +60,91 @@ export function createMonitoringController(): Hono {
   router.delete('/logs/console', (c) => {
     monitoringService.clearConsoleLogs();
     return c.json({ success: true, message: 'Log konsol dibersihkan' });
+  });
+
+  // GET /api/v1/monitoring/memory
+  router.get('/monitoring/memory', (c) => {
+    const memory = monitoringService.getMemoryHealth();
+    return c.json({
+      success: true,
+      memory,
+    });
+  });
+
+  // POST /api/v1/monitoring/auto-purge
+  router.post('/monitoring/auto-purge', (c) => {
+    const result = monitoringService.triggerAutoPurge(true);
+    return c.json({
+      success: true,
+      result,
+    });
+  });
+
+  // POST /api/v1/monitoring/auto-purge/toggle
+  router.post('/monitoring/auto-purge/toggle', async (c) => {
+    const body = await c.req.json<{ enabled?: boolean }>().catch(() => ({} as { enabled?: boolean }));
+    if (typeof body.enabled === 'boolean') {
+      monitoringService.setAutoPurgeEnabled(body.enabled);
+    }
+    const memory = monitoringService.getMemoryHealth();
+    return c.json({
+      success: true,
+      memory,
+    });
+  });
+
+  // GET /api/v1/queue/status
+  router.get('/queue/status', (c) => {
+    return c.json({
+      success: true,
+      stats: dispatchQueueService.getStats(),
+    });
+  });
+
+  // POST /api/v1/queue/pause
+  router.post('/queue/pause', (c) => {
+    dispatchQueueService.pause();
+    return c.json({
+      success: true,
+      message: 'Antrian pengiriman pesan dijeda (PAUSED)',
+      stats: dispatchQueueService.getStats(),
+    });
+  });
+
+  // POST /api/v1/queue/resume
+  router.post('/queue/resume', (c) => {
+    dispatchQueueService.resume();
+    return c.json({
+      success: true,
+      message: 'Antrian pengiriman pesan dilanjutkan (RESUMED)',
+      stats: dispatchQueueService.getStats(),
+    });
+  });
+
+  // POST /api/v1/queue/clear
+  router.post('/queue/clear', (c) => {
+    const cleared = dispatchQueueService.clear();
+    return c.json({
+      success: true,
+      message: `${cleared} pesan dalam antrian berhasil dibersihkan (CLEARED)`,
+      stats: dispatchQueueService.getStats(),
+    });
+  });
+
+  // POST /api/v1/queue/purge-unused
+  router.post('/queue/purge-unused', (c) => {
+    const prunedQueue = dispatchQueueService.purgeUnusedQueue(
+      'Pembersihan manual/otomatis antrian tidak digunakan via API'
+    );
+    const stats = dispatchQueueService.getStats();
+    const memory = monitoringService.getMemoryHealth();
+    return c.json({
+      success: true,
+      purgedCount: prunedQueue,
+      message: `${prunedQueue} antrian yang tidak digunakan berhasil dibatalkan dan dihapus otomatis untuk menghemat kapasitas RAM.`,
+      stats,
+      memory,
+    });
   });
 
   // GET /api/v1/logs/live (Server-Sent Events)

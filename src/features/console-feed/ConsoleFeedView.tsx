@@ -31,7 +31,6 @@ export function ConsoleFeedView({ logs, onRefresh }: ConsoleFeedViewProps) {
   }, [displayLogs.length, autoScroll]);
 
   const handleClear = async () => {
-    if (!confirm('Bersihkan riwayat konsol server?')) return;
     setIsClearing(true);
     try {
       await api.clearConsoleLogs();

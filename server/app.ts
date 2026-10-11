@@ -3,8 +3,10 @@ import { corsMiddleware } from './core/middleware/cors.middleware.js';
 import { requestLoggerMiddleware } from './core/middleware/logger.middleware.js';
 import { globalErrorHandler } from './core/middleware/error.middleware.js';
 import { createAuthController } from './modules/auth/presentation/auth.controller.js';
+import { createKeysController } from './modules/auth/presentation/keys.controller.js';
 import { createWhatsAppController } from './modules/whatsapp/presentation/whatsapp.controller.js';
 import { createOtpController } from './modules/otp/presentation/otp.controller.js';
+import { createEcommerceController } from './modules/ecommerce/presentation/ecommerce.controller.js';
 import { createMonitoringController } from './modules/monitoring/presentation/monitoring.controller.js';
 import { createDocsController } from './modules/docs/presentation/docs.controller.js';
 import { monitoringService } from './modules/monitoring/application/monitoring.service.js';
@@ -40,11 +42,17 @@ export function createHonoApp() {
   // Auth Module (/api/v1/auth/token, /api/v1/auth/verify)
   app.route('/api/v1/auth', createAuthController());
 
+  // Developer API Keys Module (/api/v1/keys)
+  app.route('/api/v1/keys', createKeysController());
+
   // WhatsApp Module (/api/v1/status, /api/v1/qr, /api/v1/pair-code, /api/v1/reconnect, /api/v1/reset-session)
   app.route('/api/v1', createWhatsAppController(() => monitoringService.getMetrics()));
 
   // OTP Module (/api/v1/otp/send)
   app.route('/api/v1/otp', createOtpController() as any);
+
+  // E-Commerce Notifier Module (/api/v1/ecommerce/events, /api/v1/ecommerce/templates)
+  app.route('/api/v1/ecommerce', createEcommerceController() as any);
 
   // Monitoring Module (/api/v1/otp/logs, /api/v1/logs/errors, /api/v1/logs/console, /api/v1/logs/live)
   app.route('/api/v1', createMonitoringController());

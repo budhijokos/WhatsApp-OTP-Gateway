@@ -13,13 +13,12 @@ interface TokenBucketRecord {
 
 export class OtpRateLimiter {
   private recipientCooldowns = new Map<string, RecipientCooldownRecord>();
-  private tokenBuckets = new Map<string, TokenBucketRecord>();
 
   /**
-   * Check and enforce rate limits for recipient phone and developer token.
+   * Check and enforce cooldown rate limit for recipient phone number.
    * Throws RateLimitError (HTTP 429) if limits are breached.
    */
-  public checkAndRecord(cleanNumber: string, developerId: string, bypass: boolean = false): void {
+  public checkAndRecord(cleanNumber: string, _developerId?: string, bypass: boolean = false): void {
     if (bypass && AppConfig.rateLimit.allowBypassWithHeader) {
       return;
     }
@@ -47,33 +46,10 @@ export class OtpRateLimiter {
       }
     }
 
-    // 2. Check Developer Token Sliding Window (Max 60 requests/minute)
-    let bucket = this.tokenBuckets.get(developerId);
-    if (!bucket) {
-      bucket = { timestamps: [] };
-      this.tokenBuckets.set(developerId, bucket);
-    }
-
-    const oneMinuteAgo = now - 60000;
-    bucket.timestamps = bucket.timestamps.filter((ts) => ts > oneMinuteAgo);
-
-    if (bucket.timestamps.length >= AppConfig.rateLimit.tokenMaxRequestsPerMinute) {
-      throw new RateLimitError(
-        `Batas frekuensi terlampaui: Maksimal ${AppConfig.rateLimit.tokenMaxRequestsPerMinute} pengiriman OTP per menit untuk pengembang '${developerId}'.`,
-        ErrorCodes.RATE_LIMIT_EXCEEDED,
-        'Kurangi frekuensi pemanggilan API atau hubungi administrator untuk meningkatkan kuota pengembang Anda.',
-        {
-          limitPerMinute: AppConfig.rateLimit.tokenMaxRequestsPerMinute,
-          developerId,
-        }
-      );
-    }
-
     // Record usage
     this.recipientCooldowns.set(cleanNumber, { lastSentAt: now });
-    bucket.timestamps.push(now);
 
-    // Garbage collection of old cooldown records every 50 records
+    // Garbage collection of old cooldown records
     if (this.recipientCooldowns.size > 500) {
       this.cleanup();
     }

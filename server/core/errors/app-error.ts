@@ -112,3 +112,22 @@ export class NotFoundError extends AppError {
     });
   }
 }
+
+export class MemoryPressureQueuePurgedError extends AppError {
+  constructor(
+    message: string = 'Antrian pesan dibatalkan otomatis karena kapasitas memori server hampir penuh',
+    suggestedAction?: string,
+    details?: unknown
+  ) {
+    super({
+      message,
+      statusCode: 503,
+      code: ErrorCodes.QUEUE_PURGED_MEMORY_PRESSURE,
+      suggestedAction:
+        suggestedAction ||
+        'Kapasitas buffer memori server mendekati batas atas (high watermark). Antrian yang tidak digunakan dibatalkan secara otomatis untuk mencegah sistem crash. Silakan kirim ulang request setelah penggunaan memori kembali stabil.',
+      details,
+      category: 'system',
+    });
+  }
+}

@@ -124,17 +124,17 @@ export function TemplateEditorView({ onNavigateToTester }: TemplateEditorViewPro
 
   // Reset to default factory template
   const handleReset = async () => {
-    if (!confirm('Apakah Anda yakin ingin mengembalikan template ke standar bawaan sistem?')) {
-      return;
-    }
     try {
       const res = await api.resetTemplate();
       if (res.success) {
         setTemplate(res.activeTemplate);
         setSelectedPresetId('security_standard');
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch (err: any) {
-      alert('Gagal reset: ' + err.message);
+      setSaveError('Gagal reset template: ' + err.message);
+      setTimeout(() => setSaveError(null), 4000);
     }
   };
 

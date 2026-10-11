@@ -6,7 +6,9 @@ export function CodeSamples() {
   const baseUrl = window.location.origin;
 
   const samples = {
-    curl: `# 1. Mengirim OTP WhatsApp dengan Simulasi Anti-Ban & Webhook
+    curl: `# =========================================================================
+# 1. PENGIRIMAN OTP WHATSAPP (POST /api/v1/otp/send)
+# =========================================================================
 curl -X POST "${baseUrl}/api/v1/otp/send" \\
   -H "Authorization: Bearer <YOUR_DEVELOPER_JWT_TOKEN>" \\
   -H "Content-Type: application/json" \\
@@ -18,29 +20,35 @@ curl -X POST "${baseUrl}/api/v1/otp/send" \\
     "webhookUrl": "https://api.yourdomain.com/webhooks/whatsapp"
   }'
 
-# 2. Respon Sukses (HTTP 200 OK)
-# {
-#   "success": true,
-#   "message": "OTP berhasil dikirim ke nomor WhatsApp penerima",
-#   "data": {
-#     "messageId": "3EB0C8921817502B",
-#     "recipient": "+6281234567890",
-#     "maskedRecipient": "+6281****890",
-#     "otp": "849201",
-#     "appName": "FinPay Security",
-#     "sentAt": "2026-10-01T07:15:00.000Z",
-#     "latencyMs": 1420,
-#     "simulatedTypingMs": 1280
-#   }
-# }
-
-# 3. Verifikasi Kode OTP (POST /api/v1/otp/verify)
+# =========================================================================
+# 2. VERIFIKASI KODE OTP (POST /api/v1/otp/verify)
+# =========================================================================
 curl -X POST "${baseUrl}/api/v1/otp/verify" \\
   -H "Authorization: Bearer <YOUR_DEVELOPER_JWT_TOKEN>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "to": "081234567890",
     "otp": "849201"
+  }'
+
+# =========================================================================
+# 3. NOTIFIKASI EVENT E-COMMERCE & TOKO ONLINE (POST /api/v1/ecommerce/events)
+# =========================================================================
+curl -X POST "${baseUrl}/api/v1/ecommerce/events" \\
+  -H "Authorization: Bearer <YOUR_DEVELOPER_JWT_TOKEN>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "event": "shipping_dispatched",
+    "to": "081234567890",
+    "data": {
+      "customerName": "Budi Santoso",
+      "orderId": "INV-202610-098",
+      "storeName": "Toko Keren Official",
+      "courier": "J&T Express",
+      "trackingNumber": "JT9823481230ID",
+      "trackingUrl": "https://cekresi.com/?no=JT9823481230ID",
+      "totalAmount": "Rp 275.000"
+    }
   }'`,
 
     json: `// 1. Request Body Kirim OTP (POST /api/v1/otp/send)
@@ -58,128 +66,167 @@ curl -X POST "${baseUrl}/api/v1/otp/verify" \\
   "otp": "849201"
 }
 
-// 3. Response Verifikasi Berhasil (HTTP 200 OK)
+// 3. Request Body Event E-Commerce (POST /api/v1/ecommerce/events)
 {
-  "success": true,
-  "verified": true,
-  "message": "Verifikasi OTP berhasil untuk nomor +6281****890.",
-  "appName": "FinPay Security"
-}
-
-// 4. Response Terlalu Banyak Permintaan (HTTP 429 Too Many Requests)
-{
-  "success": false,
-  "error": "Terlalu banyak permintaan: Harap tunggu 45 detik lagi sebelum mengirim OTP baru ke nomor ini.",
-  "code": "RATE_LIMIT_COOLDOWN",
-  "details": {
-    "retryAfterSeconds": 45,
-    "recipient": "+6281****890"
+  "event": "shipping_dispatched",
+  "to": "081234567890",
+  "data": {
+    "customerName": "Budi Santoso",
+    "orderId": "INV-202610-098",
+    "storeName": "Toko Keren Official",
+    "courier": "J&T Express",
+    "trackingNumber": "JT9823481230ID",
+    "trackingUrl": "https://cekresi.com/?no=JT9823481230ID",
+    "totalAmount": "Rp 275.000"
   }
 }
 
-// 5. Webhook Event Payload (Diterima oleh URL Webhook Anda)
+// 4. Response Berhasil Notifikasi E-Commerce (HTTP 200 OK)
 {
-  "event": "otp.delivered",
-  "timestamp": "2026-10-01T07:45:00.000Z",
+  "success": true,
+  "message": "Notifikasi Paket Dikirim & Resi Tersedia berhasil dikirim ke WhatsApp pelanggan.",
   "data": {
     "messageId": "3EB09F71B81029C",
+    "event": "shipping_dispatched",
     "recipient": "+6281234567890",
-    "status": "delivered",
-    "appName": "FinPay Security"
+    "maskedRecipient": "+6281****890",
+    "storeName": "Toko Keren Official",
+    "orderId": "INV-202610-098",
+    "latencyMs": 1320,
+    "simulatedTypingMs": 1150
   }
 }`,
 
     node: `// Node.js (fetch API standar ES6+)
+const API_BASE = '${baseUrl}';
+const JWT_TOKEN = process.env.WHATSAPP_GATEWAY_JWT;
+
+// 1. Fungsi Kirim OTP
 async function sendWhatsAppOtp(phone, otpCode) {
-  const token = process.env.WHATSAPP_GATEWAY_JWT; // Token dari tab Developer Auth
-  
-  const response = await fetch('${baseUrl}/api/v1/otp/send', {
+  const res = await fetch(\`\${API_BASE}/api/v1/otp/send\`, {
     method: 'POST',
     headers: {
-      'Authorization': \`Bearer \${token}\`,
+      'Authorization': \`Bearer \${JWT_TOKEN}\`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       to: phone,
       otp: otpCode,
-      appName: 'FinPay Indonesia',
+      appName: 'Toko Keren Security',
       expiresInMinutes: 5
     })
   });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(\`[WhatsApp Gateway Error \${data.code}]: \${data.error}\`);
-  }
-
-  console.log('OTP terkirim via WhatsApp:', data.data.messageId);
-  return data;
+  return res.json();
 }
 
-// Contoh pemanggilan:
-sendWhatsAppOtp('081234567890', '984120');`,
+// 2. Fungsi Notifikasi Event E-Commerce (Resi / Pesanan / COD)
+async function sendEcommerceNotification(phone, eventType, orderData) {
+  const res = await fetch(\`\${API_BASE}/api/v1/ecommerce/events\`, {
+    method: 'POST',
+    headers: {
+      'Authorization': \`Bearer \${JWT_TOKEN}\`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      event: eventType, // e.g: 'shipping_dispatched', 'order_created', 'payment_received'
+      to: phone,
+      data: orderData
+    })
+  });
+  return res.json();
+}
+
+// Contoh Kirim Resi Ekspedisi:
+sendEcommerceNotification('081234567890', 'shipping_dispatched', {
+  customerName: 'Budi Santoso',
+  orderId: 'INV-202610-098',
+  storeName: 'Toko Keren Official',
+  courier: 'J&T Express',
+  trackingNumber: 'JT9823481230ID',
+  trackingUrl: 'https://cekresi.com/?no=JT9823481230ID',
+  totalAmount: 'Rp 275.000'
+}).then(res => console.log('Sukses:', res));`,
 
     python: `# Python 3 (requests)
 import os
 import requests
 
-GATEWAY_URL = "${baseUrl}/api/v1/otp/send"
+API_BASE = "${baseUrl}"
 JWT_TOKEN = os.getenv("WHATSAPP_GATEWAY_JWT", "YOUR_JWT_TOKEN_HERE")
+HEADERS = {
+    "Authorization": f"Bearer {JWT_TOKEN}",
+    "Content-Type": "application/json"
+}
 
-def send_whatsapp_otp(phone: str, otp_code: str):
-    headers = {
-        "Authorization": f"Bearer {JWT_TOKEN}",
-        "Content-Type": "application/json"
-    }
+# 1. Kirim OTP
+def send_otp(phone: str, otp_code: str):
     payload = {
         "to": phone,
         "otp": otp_code,
-        "appName": "FinPay Indonesia",
+        "appName": "Toko Keren Security",
         "expiresInMinutes": 5
     }
+    res = requests.post(f"{API_BASE}/api/v1/otp/send", json=payload, headers=HEADERS)
+    return res.json()
 
-    response = requests.post(GATEWAY_URL, json=payload, headers=headers)
-    result = response.json()
+# 2. Kirim Notifikasi E-Commerce (Event-Driven)
+def trigger_ecommerce_event(phone: str, event_type: str, data: dict):
+    payload = {
+        "event": event_type,
+        "to": phone,
+        "data": data
+    }
+    res = requests.post(f"{API_BASE}/api/v1/ecommerce/events", json=payload, headers=HEADERS)
+    return res.json()
 
-    if response.status_code != 200:
-        error_code = result.get("code", "UNKNOWN_ERROR")
-        error_msg = result.get("error", "Gagal mengirim OTP")
-        raise RuntimeError(f"[{error_code}] {error_msg}")
-
-    print(f"OTP berhasil dikirim ke {result['data']['maskedRecipient']}")
-    return result
-
-# Eksekusi
-send_whatsapp_otp("081234567890", "591024")`,
+# Contoh Eksekusi Resi Ekspedisi
+trigger_ecommerce_event("081234567890", "shipping_dispatched", {
+    "customerName": "Budi Santoso",
+    "orderId": "INV-202610-098",
+    "storeName": "Toko Keren Official",
+    "courier": "J&T Express",
+    "trackingNumber": "JT9823481230ID",
+    "trackingUrl": "https://cekresi.com/?no=JT9823481230ID",
+    "totalAmount": "Rp 275.000"
+})`,
 
     php: `<?php
 // PHP / Laravel Http Client
 use Illuminate\\Support\\Facades\\Http;
 
-function sendWhatsAppOtp($recipientPhone, $otpCode) {
-    $token = env('WHATSAPP_GATEWAY_JWT');
-    $url = '${baseUrl}/api/v1/otp/send';
+$token = env('WHATSAPP_GATEWAY_JWT');
+$baseUrl = '${baseUrl}';
 
-    $response = Http::withToken($token)
-        ->timeout(10)
-        ->post($url, [
-            'to' => $recipientPhone,
+// 1. Kirim OTP
+function sendWhatsAppOtp($phone, $otpCode) {
+    global $token, $baseUrl;
+    return Http::withToken($token)
+        ->post("$baseUrl/api/v1/otp/send", [
+            'to' => $phone,
             'otp' => $otpCode,
-            'appName' => 'FinPay Indonesia',
-            'expiresInMinutes' => 5,
-        ]);
-
-    if ($response->failed()) {
-        $error = $response->json();
-        throw new Exception("[{$error['code']}]: {$error['error']}");
-    }
-
-    return $response->json();
+            'appName' => 'Toko Keren',
+            'expiresInMinutes' => 5
+        ])->json();
 }
 
-// Pemanggilan:
-$result = sendWhatsAppOtp('081234567890', '820491');
-echo "ID Pesan: " . $result['data']['messageId'];`,
+// 2. Kirim Notifikasi Pesanan E-Commerce
+function sendOrderDispatched($phone, $order) {
+    global $token, $baseUrl;
+    return Http::withToken($token)
+        ->post("$baseUrl/api/v1/ecommerce/events", [
+            'event' => 'shipping_dispatched',
+            'to' => $phone,
+            'data' => [
+                'customerName'   => $order['customer_name'],
+                'orderId'        => $order['invoice_no'],
+                'storeName'      => 'Toko Keren Official',
+                'courier'        => $order['courier_name'],
+                'trackingNumber' => $order['tracking_number'],
+                'trackingUrl'    => 'https://cekresi.com/?no=' . $order['tracking_number'],
+                'totalAmount'    => $order['total_amount']
+            ]
+        ])->json();
+}`,
 
     go: `// Go (net/http)
 package main
@@ -189,94 +236,101 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 )
 
-type OtpRequest struct {
-	To               string \`json:"to"\`
-	Otp              string \`json:"otp"\`
-	AppName          string \`json:"appName"\`
-	ExpiresInMinutes int    \`json:"expiresInMinutes"\`
+const BaseURL = "${baseUrl}"
+const JWTToken = "YOUR_JWT_TOKEN"
+
+type EcommerceEventRequest struct {
+	Event string                 \`json:"event"\`
+	To    string                 \`json:"to"\`
+	Data  map[string]interface{} \`json:"data"\`
 }
 
-func SendWhatsAppOtp(phone, otp string) error {
-	payload := OtpRequest{
-		To:               phone,
-		Otp:              otp,
-		AppName:          "FinPay Indonesia",
-		ExpiresInMinutes: 5,
-	}
+func TriggerEcommerceEvent(to, eventType string, data map[string]interface{}) error {
+	reqBody, _ := json.Marshal(EcommerceEventRequest{
+		Event: eventType,
+		To:    to,
+		Data:  data,
+	})
 
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", "${baseUrl}/api/v1/otp/send", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", "Bearer <YOUR_DEVELOPER_JWT_TOKEN>")
+	req, _ := http.NewRequest("POST", BaseURL+"/api/v1/ecommerce/events", bytes.NewBuffer(reqBody))
+	req.Header.Set("Authorization", "Bearer "+JWTToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("gateway returned status: %d", resp.StatusCode)
-	}
-
-	fmt.Println("OTP successfully dispatched via WhatsApp")
+	fmt.Println("Status pengiriman WhatsApp:", resp.Status)
 	return nil
 }`,
   };
 
-  const tabs = [
-    { id: 'curl', label: 'cURL' },
-    { id: 'json', label: 'JSON Schemas' },
-    { id: 'node', label: 'Node.js (Fetch)' },
-    { id: 'python', label: 'Python' },
-    { id: 'php', label: 'PHP / Laravel' },
-    { id: 'go', label: 'Go' },
-  ];
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-white tracking-tight">Contoh Integrasi Multi-Bahasa</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Snippet kode siap pakai dengan format header Authorization Bearer JWT.
-          </p>
-        </div>
+      {/* Language Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none border-b border-slate-800 pb-2">
+        <button
+          onClick={() => setActiveLang('curl')}
+          className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer shrink-0 ${
+            activeLang === 'curl' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          cURL
+        </button>
+        <button
+          onClick={() => setActiveLang('json')}
+          className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer shrink-0 ${
+            activeLang === 'json' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          JSON Payload
+        </button>
+        <button
+          onClick={() => setActiveLang('node')}
+          className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer shrink-0 ${
+            activeLang === 'node' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Node.js (Fetch)
+        </button>
+        <button
+          onClick={() => setActiveLang('python')}
+          className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer shrink-0 ${
+            activeLang === 'python' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Python 3 (Requests)
+        </button>
+        <button
+          onClick={() => setActiveLang('php')}
+          className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer shrink-0 ${
+            activeLang === 'php' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          PHP / Laravel
+        </button>
+        <button
+          onClick={() => setActiveLang('go')}
+          className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer shrink-0 ${
+            activeLang === 'go' ? 'bg-slate-800 text-emerald-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Go (net/http)
+        </button>
       </div>
 
-      <div className="flex items-center p-1 bg-slate-950 rounded-lg border border-slate-800 overflow-x-auto">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveLang(tab.id as any)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap ${
-              activeLang === tab.id
-                ? 'bg-slate-800 text-white shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Code Display */}
+      <div className="overflow-hidden rounded-xl border border-slate-800">
+        <CodeBlock
+          language={activeLang === 'curl' ? 'bash' : activeLang === 'node' ? 'typescript' : activeLang}
+          code={samples[activeLang]}
+        />
       </div>
-
-      <CodeBlock
-        code={samples[activeLang]}
-        language={activeLang === 'json' ? 'json' : activeLang === 'curl' ? 'bash' : activeLang}
-        title={`Contoh Implementasi: ${tabs.find((t) => t.id === activeLang)?.label}`}
-      />
     </div>
   );
 }

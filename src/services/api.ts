@@ -1,9 +1,23 @@
 import {
+  ApiKeyItem,
+  ApiKeyStats,
   ConsoleLogEntry,
   DeliveryLog,
   DetailedErrorLog,
   DeveloperTokenResult,
+  EcommerceEventData,
+  EcommerceEventTemplate,
+  EcommerceEventTriggerDto,
+  EcommerceEventType,
+  EcommerceTriggerResult,
+  MemoryHealthInfo,
+  QueueStats,
+  RateLimitActivityResponse,
+  RateLimitAccountStat,
   SystemMetrics,
+  WebhookSimulationPreset,
+  WebhookSimulationRequest,
+  WebhookSimulationResponse,
   WhatsAppState,
 } from '../types';
 
@@ -119,6 +133,113 @@ export const api = {
     return res.json();
   },
 
+  async getKeys(): Promise<{ success: boolean; keys: ApiKeyItem[]; stats: ApiKeyStats; secretPreview: string }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async getRateLimitActivity(): Promise<RateLimitActivityResponse> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/rate-limit-activity`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async simulateRateLimitTraffic(payload: {
+    clientId: string;
+    successAdd?: number;
+    throttledAdd?: number;
+  }): Promise<{ success: boolean; message: string; data: RateLimitAccountStat }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/rate-limit-activity/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal mensimulasikan lalu lintas');
+    return data;
+  },
+
+  async resetRateLimitStats(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/rate-limit-activity/reset`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal mereset metrik');
+    return data;
+  },
+
+  async createApiKey(payload: {
+    clientName: string;
+    clientId?: string;
+    environment?: 'production' | 'staging' | 'development';
+    permissions?: string[];
+    expiresIn?: string;
+  }): Promise<{ success: boolean; message: string; data: ApiKeyItem; sampleCurl: string }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal membuat kunci API');
+    return data;
+  },
+
+  async rotateApiKey(
+    id: string,
+    payload: {
+      gracePeriodHours?: number;
+      newExpiresIn?: string;
+      newPermissions?: string[];
+    }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: ApiKeyItem;
+    newToken: string;
+    previousTokenValidUntil?: string;
+    sampleCurl: string;
+  }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/${id}/rotate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal merotasi kunci API');
+    return data;
+  },
+
+  async revokeApiKey(
+    id: string,
+    reason?: string
+  ): Promise<{ success: boolean; message: string; data: ApiKeyItem }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/${id}/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal mencabut kunci API');
+    return data;
+  },
+
+  async deleteApiKey(id: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/${id}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal menghapus kunci API');
+    return data;
+  },
+
+  async getKeyDetails(id: string): Promise<{ success: boolean; data: ApiKeyItem; sampleCurl: string }> {
+    const res = await fetch(`${API_BASE}/api/v1/keys/${id}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
   async sendOtp(
     payload: {
       to: string;
@@ -197,6 +318,65 @@ export const api = {
     await fetch(`${API_BASE}/api/v1/otp/logs`, { method: 'DELETE' });
   },
 
+  async getMemoryHealth(): Promise<{ success: boolean; memory: MemoryHealthInfo }> {
+    const res = await fetch(`${API_BASE}/api/v1/monitoring/memory`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async triggerAutoPurge(): Promise<{ success: boolean; result: any }> {
+    const res = await fetch(`${API_BASE}/api/v1/monitoring/auto-purge`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async toggleAutoPurge(enabled: boolean): Promise<{ success: boolean; memory: MemoryHealthInfo }> {
+    const res = await fetch(`${API_BASE}/api/v1/monitoring/auto-purge/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  // --- P-Queue Message Queue Methods ---
+  async getQueueStats(): Promise<{ success: boolean; stats: QueueStats }> {
+    const res = await fetch(`${API_BASE}/api/v1/queue/status`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async pauseQueue(): Promise<{ success: boolean; message: string; stats: QueueStats }> {
+    const res = await fetch(`${API_BASE}/api/v1/queue/pause`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async resumeQueue(): Promise<{ success: boolean; message: string; stats: QueueStats }> {
+    const res = await fetch(`${API_BASE}/api/v1/queue/resume`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async clearQueue(): Promise<{ success: boolean; message: string; stats: QueueStats }> {
+    const res = await fetch(`${API_BASE}/api/v1/queue/clear`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async purgeUnusedQueue(): Promise<{
+    success: boolean;
+    purgedCount: number;
+    message: string;
+    stats: QueueStats;
+    memory: MemoryHealthInfo;
+  }> {
+    const res = await fetch(`${API_BASE}/api/v1/queue/purge-unused`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
   async getErrorLogs(limit = 100): Promise<{ errors: DetailedErrorLog[] }> {
     const res = await fetch(`${API_BASE}/api/v1/logs/errors?limit=${limit}`);
     return res.json();
@@ -218,6 +398,109 @@ export const api = {
 
   async clearConsoleLogs(): Promise<void> {
     await fetch(`${API_BASE}/api/v1/logs/console`, { method: 'DELETE' });
+  },
+
+  // --- E-Commerce Notifier Methods ---
+  async getEcommerceTemplates(): Promise<{ success: boolean; count: number; templates: EcommerceEventTemplate[] }> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/templates`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async updateEcommerceTemplate(
+    id: EcommerceEventType,
+    payload: { template?: string; enabled?: boolean }
+  ): Promise<{ success: boolean; message: string; template: EcommerceEventTemplate }> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/templates/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal memperbarui template event e-commerce');
+    return data;
+  },
+
+  async resetEcommerceTemplates(): Promise<{ success: boolean; message: string; templates: EcommerceEventTemplate[] }> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/templates/reset`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async previewEcommerceTemplate(payload: {
+    event: EcommerceEventType;
+    template?: string;
+    data?: EcommerceEventData;
+  }): Promise<{ success: boolean; event: string; preview: string }> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal mempratinjau template');
+    return data;
+  },
+
+  async simulateEcommerceEvent(payload: EcommerceEventTriggerDto): Promise<EcommerceTriggerResult> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw {
+        status: res.status,
+        ...data,
+      };
+    }
+    return data;
+  },
+
+  // --- Webhook Simulator API ---
+  async getWebhookPresets(): Promise<{ success: boolean; count: number; presets: WebhookSimulationPreset[] }> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/webhook-simulator/presets`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  async sendWebhookSimulation(payload: WebhookSimulationRequest): Promise<{ success: boolean; data: WebhookSimulationResponse }> {
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/webhook-simulator/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Gagal mengirim simulasi webhook');
+    }
+    return data;
+  },
+
+  async triggerEcommerceEvent(
+    payload: EcommerceEventTriggerDto,
+    token: string
+  ): Promise<EcommerceTriggerResult> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token.trim()}`;
+    }
+    const res = await fetch(`${API_BASE}/api/v1/ecommerce/events`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw {
+        status: res.status,
+        ...data,
+      };
+    }
+    return data;
   },
 
   subscribeLiveLogs(handlers: {

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { createAuthGuard } from '../../auth/presentation/auth.middleware.js';
+import { createDeveloperRateLimitMiddleware } from '../../../core/middleware/rate-limit.middleware.js';
 import { otpService } from '../application/otp.service.js';
 import { ValidationError } from '../../../core/errors/app-error.js';
 import { SendOtpDto, VerifyOtpDto } from '../domain/otp.types.js';
@@ -80,10 +81,14 @@ export function createOtpController(): Hono<{ Variables: { developer: DeveloperC
     });
   });
 
-  // POST /api/v1/otp/send (Protected with JWT Middleware)
-  router.post('/send', createAuthGuard('otp:send'), async (c) => {
-    const developer = c.get('developer');
-    const body = await c.req.json<SendOtpDto>().catch(() => ({}) as SendOtpDto);
+  // POST /api/v1/otp/send (Protected with JWT Auth & Developer Account Rate Limiting)
+  router.post(
+    '/send',
+    createAuthGuard('otp:send'),
+    createDeveloperRateLimitMiddleware(),
+    async (c) => {
+      const developer = c.get('developer');
+      const body = await c.req.json<SendOtpDto>().catch(() => ({}) as SendOtpDto);
 
     if (!body.to) {
       throw new ValidationError(

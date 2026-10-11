@@ -1,9 +1,11 @@
 import { eventBus } from '../../../core/events/event-bus.js';
 import { InMemoryLogStore } from '../infrastructure/in-memory-log.store.js';
+import { dispatchQueueService } from '../../../core/queue/dispatch-queue.service.js';
 import {
   ConsoleLogEntry,
   DeliveryLog,
   DetailedErrorLog,
+  MemoryHealthInfo,
   SystemMetrics,
 } from '../domain/monitoring.types.js';
 
@@ -135,7 +137,25 @@ export class MonitoringService {
       avgLatencyMs: avgLatency,
       errorCount: this.store.getErrorLogs(1000).length,
       waStatus: this.waStatusProvider(),
+      memory: this.store.getMemoryHealth(),
+      queue: dispatchQueueService.getStats(),
     };
+  }
+
+  public getMemoryHealth(): MemoryHealthInfo {
+    return this.store.getMemoryHealth();
+  }
+
+  public triggerAutoPurge(force = true) {
+    const res = this.store.checkAndAutoPurge('manual_trigger', force);
+    if (res.purged) {
+      this.broadcast('memory_purged', res);
+    }
+    return res;
+  }
+
+  public setAutoPurgeEnabled(enabled: boolean) {
+    this.store.setAutoPurgeEnabled(enabled);
   }
 
   public subscribe(callback: (payload: { event: string; data: unknown }) => void): () => void {

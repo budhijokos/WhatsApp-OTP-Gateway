@@ -266,6 +266,124 @@ export function buildOpenApiSpec(serverUrl: string = '') {
           },
         },
       },
+      '/api/v1/keys': {
+        get: {
+          tags: ['Otentikasi & Developer Keys'],
+          summary: 'Daftar Kunci API Klien & Metrik Rotasi',
+          description: 'Mengambil seluruh daftar kunci API pengembang, status aktif/rotasi/revoked, serta statistik penggunaan.',
+          responses: {
+            '200': {
+              description: 'Daftar kunci berhasil diambil',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      keys: { type: 'array', items: { type: 'object' } },
+                      stats: { type: 'object' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        post: {
+          tags: ['Otentikasi & Developer Keys'],
+          summary: 'Buat Kunci API Klien Baru',
+          description: 'Mendaftarkan aplikasi klien baru dan menghasilkan kunci JWT bertanda tangan digital.',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['clientName'],
+                  properties: {
+                    clientName: { type: 'string', example: 'FinPay Android App' },
+                    clientId: { type: 'string', example: 'finpay_android' },
+                    environment: { type: 'string', enum: ['production', 'staging', 'development'], example: 'production' },
+                    permissions: { type: 'array', items: { type: 'string' }, example: ['otp:send', 'otp:read'] },
+                    expiresIn: { type: 'string', example: '365d' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '201': {
+              description: 'Kunci API berhasil dibuat',
+            },
+          },
+        },
+      },
+      '/api/v1/keys/{id}/rotate': {
+        post: {
+          tags: ['Otentikasi & Developer Keys'],
+          summary: 'Rotasi Kunci API (Zero-Downtime Grace Period)',
+          description: 'Merotasi kunci API dengan masa tenggang (grace period). Kunci lama tetap diizinkan sementara waktu untuk transisi tanpa downtime.',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', example: 'key_abc123' },
+              description: 'ID Kunci yang akan dirotasi',
+            },
+          ],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    gracePeriodHours: { type: 'integer', example: 24, description: 'Jam toleransi kunci lama sebelum hangus' },
+                    newExpiresIn: { type: 'string', example: '90d' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Kunci berhasil dirotasi',
+            },
+          },
+        },
+      },
+      '/api/v1/keys/{id}/revoke': {
+        post: {
+          tags: ['Otentikasi & Developer Keys'],
+          summary: 'Cabut Kunci API (Immediate Revocation)',
+          description: 'Mencabut dan menonaktifkan kunci API segera untuk perlindungan keamanan jika kunci terindikasi bocor.',
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string', example: 'key_abc123' },
+            },
+          ],
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    reason: { type: 'string', example: 'Kunci lama terindikasi bocor' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Kunci berhasil dicabut',
+            },
+          },
+        },
+      },
       '/api/v1/otp/send': {
         post: {
           tags: ['Pengiriman OTP'],
@@ -319,7 +437,13 @@ export function buildOpenApiSpec(serverUrl: string = '') {
               },
             },
             '429': {
-              description: 'Terlalu banyak permintaan: Cooldown jeda 60 detik per nomor atau kuota pengiriman terlampaui',
+              description: 'Terlalu banyak permintaan: Kuota akun developer terlampaui (RATE_LIMIT_EXCEEDED) atau cooldown nomor penerima (RATE_LIMIT_COOLDOWN)',
+              headers: {
+                'RateLimit-Limit': { schema: { type: 'integer' }, description: 'Maksimal permintaan per window menit' },
+                'RateLimit-Remaining': { schema: { type: 'integer' }, description: 'Sisa kuota permintaan' },
+                'RateLimit-Reset': { schema: { type: 'integer' }, description: 'Detik menuju reset kuota' },
+                'Retry-After': { schema: { type: 'integer' }, description: 'Detik harus menunggu sebelum request ulang' },
+              },
               content: {
                 'application/json': {
                   schema: { $ref: '#/components/schemas/ErrorResponse' },
@@ -539,6 +663,75 @@ export function buildOpenApiSpec(serverUrl: string = '') {
           responses: {
             '200': {
               description: 'Log konsol berhasil dibersihkan',
+            },
+          },
+        },
+      },
+      '/api/v1/ecommerce/events': {
+        post: {
+          tags: ['E-Commerce Notifier'],
+          summary: 'Kirim Notifikasi Event E-Commerce & Toko Online',
+          description:
+            'Memicu pengiriman pesan WhatsApp otomatis berdasarkan status pesanan (order_created, payment_received, shipping_dispatched, order_delivered, cod_confirmation, abandoned_cart).',
+          security: [{ BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['event', 'to'],
+                  properties: {
+                    event: {
+                      type: 'string',
+                      enum: [
+                        'order_created',
+                        'payment_received',
+                        'order_processing',
+                        'shipping_dispatched',
+                        'order_delivered',
+                        'cod_confirmation',
+                        'abandoned_cart',
+                      ],
+                      example: 'shipping_dispatched',
+                    },
+                    to: {
+                      type: 'string',
+                      description: 'Nomor WhatsApp pembeli / penerima.',
+                      example: '081234567890',
+                    },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        customerName: { type: 'string', example: 'Budi Santoso' },
+                        orderId: { type: 'string', example: 'INV-202610-098' },
+                        storeName: { type: 'string', example: 'Toko Keren Official' },
+                        courier: { type: 'string', example: 'J&T Express' },
+                        trackingNumber: { type: 'string', example: 'JT9823481230ID' },
+                        trackingUrl: { type: 'string', example: 'https://cekresi.com/?no=JT9823481230ID' },
+                        totalAmount: { type: 'string', example: 'Rp 275.000' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Notifikasi e-commerce berhasil dikirim ke WhatsApp pembeli',
+            },
+          },
+        },
+      },
+      '/api/v1/ecommerce/templates': {
+        get: {
+          tags: ['E-Commerce Notifier'],
+          summary: 'Daftar Template Event E-Commerce',
+          description: 'Mengambil konfigurasi template dan status aktif/nonaktif untuk setiap jenis event pesanan.',
+          responses: {
+            '200': {
+              description: 'Daftar template event e-commerce',
             },
           },
         },

@@ -42,6 +42,19 @@ export const AppConfig = {
     maxErrorLogs: 150,
     maxConsoleLogs: 300,
     pingIntervalMs: 15000,
+    autoPurge: {
+      enabled: true,
+      highWatermarkRatio: 0.85, // 85% of buffer capacity triggers auto purge
+      heapThresholdMb: 220, // 220MB heap triggers auto purge
+      purgeBatchRatio: 0.35, // Purge oldest 35% when triggered
+      checkIntervalMs: 15000, // Background memory check interval
+    },
+  },
+  queue: {
+    concurrency: 1, // Sequential dispatch to protect Baileys socket & anti-ban
+    intervalCap: 1, // Max 1 message per interval
+    interval: 1000, // 1000ms cooldown interval between message dispatches
+    timeoutMs: 30000, // 30s timeout per message task
   },
 } as const;
 

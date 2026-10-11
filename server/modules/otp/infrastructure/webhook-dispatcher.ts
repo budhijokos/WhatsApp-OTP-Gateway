@@ -2,7 +2,7 @@ import { AppConfig } from '../../../core/config/app.config.js';
 import { eventBus } from '../../../core/events/event-bus.js';
 
 export interface WebhookEventPayload {
-  event: 'otp.sent' | 'otp.delivered' | 'otp.read' | 'otp.failed';
+  event: string;
   timestamp: string;
   data: {
     messageId?: string;
@@ -12,6 +12,7 @@ export interface WebhookEventPayload {
     appName: string;
     latencyMs?: number;
     error?: string;
+    [key: string]: unknown;
   };
 }
 

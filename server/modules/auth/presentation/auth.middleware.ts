@@ -28,7 +28,15 @@ export function createAuthGuard(requiredPermission?: string): MiddlewareHandler<
     }
 
     const token = parts[1];
-    const decoded = authService.verifyToken(token);
+    const validation = authService.validateToken(token);
+    const decoded = validation.claims;
+
+    if (validation.isGracePeriodKey && validation.key?.rotationInfo?.previousTokenExpiresAt) {
+      c.header(
+        'X-Key-Rotation-Warning',
+        `Current key is rotating and will expire on ${validation.key.rotationInfo.previousTokenExpiresAt}. Update client to new key.`
+      );
+    }
 
     if (requiredPermission && (!decoded.permissions || !decoded.permissions.includes(requiredPermission))) {
       throw new ForbiddenError(

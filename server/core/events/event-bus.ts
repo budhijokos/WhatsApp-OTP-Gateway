@@ -3,7 +3,7 @@ import { EventEmitter } from 'events';
 export type EventMap = {
   'console:log': {
     level: 'info' | 'success' | 'warn' | 'error';
-    source: 'whatsapp' | 'hono-api' | 'auth' | 'system';
+    source: 'whatsapp' | 'hono-api' | 'auth' | 'system' | 'ecommerce';
     message: string;
     meta?: Record<string, unknown>;
   };

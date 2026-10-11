@@ -9,6 +9,9 @@ import { ConsoleFeedView } from './features/console-feed/ConsoleFeedView';
 import { DeveloperGuide } from './features/developer-docs/DeveloperGuide';
 import { SwaggerViewer } from './features/swagger-viewer/SwaggerViewer';
 import { TemplateEditorView } from './features/template-editor/TemplateEditorView';
+import { ApiKeysView } from './features/api-keys/ApiKeysView';
+import { EcommerceNotifierView } from './features/ecommerce/EcommerceNotifierView';
+import { WebhookSimulatorView } from './features/webhook-simulator/WebhookSimulatorView';
 import { api } from './services/api';
 import {
   ConsoleLogEntry,
@@ -146,6 +149,22 @@ export default function App() {
             recentErrors={errorLogs}
             onOpenPairing={() => setIsPairingOpen(true)}
             onNavigate={setActiveTab}
+            onRefreshMetrics={refreshAllData}
+          />
+        )}
+
+        {activeTab === 'ecommerce' && (
+          <EcommerceNotifierView
+            waState={waState}
+            onOpenPairing={() => setIsPairingOpen(true)}
+            onNavigateToLogs={() => setActiveTab('logs')}
+            onNavigateToWebhookSimulator={() => setActiveTab('webhook-sim')}
+          />
+        )}
+
+        {activeTab === 'webhook-sim' && (
+          <WebhookSimulatorView
+            onNavigateToEcommerce={() => setActiveTab('ecommerce')}
           />
         )}
 
@@ -156,6 +175,8 @@ export default function App() {
             initialTemplate={customTemplateForTester}
           />
         )}
+
+        {activeTab === 'keys' && <ApiKeysView />}
 
         {activeTab === 'template' && (
           <TemplateEditorView
@@ -187,7 +208,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'developer' && <DeveloperGuide />}
+        {activeTab === 'developer' && <DeveloperGuide onNavigate={setActiveTab} />}
 
         {activeTab === 'swagger' && <SwaggerViewer />}
       </main>
